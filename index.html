@@ -8,12 +8,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         :root {
-            --primary-color: #b026ff;
-            --primary-color-hover: #8c1cce;
-            --primary-color-lighter: #d470ff;
-            --primary-color-trans: hsla(278, 100%, 57%, 0.4);
-            --primary-color-shadow: hsla(278, 100%, 57%, 0.6);
-            --primary-color-light: hsla(278, 100%, 57%, 0.15);
+            --primary-color: #d4af37;
+            --primary-color-hover: #b5952f;
+            --primary-color-lighter: #f3e5ab;
+            --primary-color-trans: rgba(212, 175, 55, 0.4);
+            --primary-color-shadow: rgba(212, 175, 55, 0.6);
+            --primary-color-light: rgba(212, 175, 55, 0.15);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -850,15 +850,19 @@
 
 <script>
 (function() {
-    let hue = 278;
+    let time = 0;
     function updateColor() {
-        hue = (hue + 0.3) % 360;
-        document.documentElement.style.setProperty('--primary-color', `hsl(${hue}, 100%, 57%)`);
-        document.documentElement.style.setProperty('--primary-color-hover', `hsl(${hue}, 100%, 47%)`);
-        document.documentElement.style.setProperty('--primary-color-lighter', `hsl(${hue}, 100%, 72%)`);
-        document.documentElement.style.setProperty('--primary-color-trans', `hsla(${hue}, 100%, 57%, 0.4)`);
-        document.documentElement.style.setProperty('--primary-color-shadow', `hsla(${hue}, 100%, 57%, 0.6)`);
-        document.documentElement.style.setProperty('--primary-color-light', `hsla(${hue}, 100%, 57%, 0.15)`);
+        time += 0.04;
+        // Emulate a shimmering gold dust effect
+        const hue = 43 + Math.sin(time) * 4;
+        const sat = 90 + Math.cos(time * 0.8) * 10;
+        const lit = 55 + Math.sin(time * 1.5) * 8;
+        document.documentElement.style.setProperty('--primary-color', `hsl(${hue}, ${sat}%, ${lit}%)`);
+        document.documentElement.style.setProperty('--primary-color-hover', `hsl(${hue}, ${sat}%, ${lit - 10}%)`);
+        document.documentElement.style.setProperty('--primary-color-lighter', `hsl(${hue}, ${sat}%, ${lit + 20}%)`);
+        document.documentElement.style.setProperty('--primary-color-trans', `hsla(${hue}, ${sat}%, ${lit}%, 0.4)`);
+        document.documentElement.style.setProperty('--primary-color-shadow', `hsla(${hue}, ${sat}%, ${lit}%, 0.6)`);
+        document.documentElement.style.setProperty('--primary-color-light', `hsla(${hue}, ${sat}%, ${lit}%, 0.15)`);
         requestAnimationFrame(updateColor);
     }
     updateColor();
