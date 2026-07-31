@@ -1,5 +1,13 @@
 # Development & Scraper Thought Process Log
 
+> **ARCHIVED — historical reference only.**
+> The download/scraper feature was removed in `08507e7`, and its remaining
+> code was cleaned up in Phase 0 of `REVAMP.md`. `backend/download.js`,
+> `backend/.puppeteerrc.cjs`, and the `puppeteer` dependency no longer exist.
+> Nothing described below is part of the current codebase. Kept because
+> Phases 1–5 document why in-house stream extraction was abandoned —
+> see `REVAMP.md` §4.4 (Tier 3) before considering it again.
+
 This document tracks the evolution of the `download.js` backend scraper and `index.html` frontend, specifically focusing on bypassing anti-bot protections and extracting video streams.
 
 ---

@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
     <link rel="icon" type="image/png" href="assets/image.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Supabase client (UMD build → window.supabase). Must load before the app script. -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Project keys. Gitignored; copy config.example.js if missing. -->
+    <script src="config.js"></script>
     <style>
         :root {
             --primary-color: #d4af37;
@@ -636,6 +640,21 @@
         .auth-btn:hover { background: var(--primary-color-hover); }
         .auth-switch { text-align: center; margin-top: 1rem; font-size: 0.9rem; color: #888; }
         .auth-switch span { color: var(--primary-color); cursor: pointer; font-weight: 600; }
+        .auth-forgot { text-align: center; margin-top: 0.9rem; font-size: 0.85rem; }
+        .auth-forgot span { color: #888; cursor: pointer; }
+        .auth-forgot span:hover { color: var(--primary-color); }
+        .auth-message {
+            display: none;
+            font-size: 0.85rem;
+            line-height: 1.45;
+            padding: 0.65rem 0.85rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            border: 1px solid transparent;
+        }
+        .auth-message.show { display: block; }
+        .auth-message.error { background: rgba(219,35,96,0.12); border-color: #db2360; color: #ff8fb0; }
+        .auth-message.ok { background: rgba(33,208,122,0.12); border-color: #21d07a; color: #7ce8b4; }
         .auth-close {
             position: absolute; top: 1rem; right: 1rem; color: #666; cursor: pointer; font-size: 1.2rem;
         }
@@ -663,6 +682,224 @@
                 padding: 10px 16px;
                 font-size: 0.8rem;
             }
+        }
+
+        /* Chatbot Styles */
+        .chatbot-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 999;
+            transition: 0.3s;
+        }
+        .chatbot-btn:hover {
+            transform: scale(1.1);
+        }
+        .chatbot-window {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 350px;
+            height: 500px;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 16px;
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            overflow: hidden;
+        }
+        .chat-header {
+            background: #1a1a1a;
+            padding: 1rem;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+        .chat-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .chat-header-btn {
+            cursor: pointer;
+            color: #888;
+            font-size: 1rem;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+        .chat-header-btn:hover,
+        .chat-header-btn.active {
+            color: var(--primary-color);
+        }
+        .chat-close {
+            cursor: pointer;
+            color: #888;
+        }
+        .chat-close:hover {
+            color: white;
+        }
+        .chat-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            position: relative;
+        }
+        .chat-history-panel {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            background: #0d0d0d;
+        }
+        .chat-history-panel.open {
+            display: flex;
+        }
+        .chat-history-header {
+            padding: 0.75rem 1rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #666;
+            border-bottom: 1px solid #222;
+        }
+        .chat-history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+        .chat-history-empty {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: #555;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        .chat-history-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.65rem 0.75rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 0.25rem;
+        }
+        .chat-history-item:hover {
+            background: #1a1a1a;
+        }
+        .chat-history-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .chat-history-item-title {
+            color: #eee;
+            font-size: 0.9rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-history-item-date {
+            color: #666;
+            font-size: 0.72rem;
+            margin-top: 0.15rem;
+        }
+        .chat-history-play {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: var(--primary-color);
+            color: #111;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+        }
+        .chat-history-play:hover {
+            filter: brightness(1.1);
+        }
+        .chat-conversation {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .chat-conversation.hidden {
+            display: none;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .chat-msg {
+            max-width: 80%;
+            padding: 0.8rem 1rem;
+            border-radius: 16px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        .chat-msg.bot {
+            background: #1a1a1a;
+            color: #eee;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .chat-msg.user {
+            background: var(--primary-color);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 0.8rem;
+            background: #0a0a0a;
+            border-top: 1px solid #333;
+        }
+        .chat-input {
+            flex: 1;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            padding: 0.6rem 1rem;
+            border-radius: 20px;
+            color: white;
+            outline: none;
+        }
+        .chat-input:focus {
+            border-color: var(--primary-color);
+        }
+        .chat-send {
+            background: transparent;
+            border: none;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0 0.5rem 0 1rem;
         }
     </style>
 </head>
@@ -835,16 +1072,45 @@
                 <input type="email" id="auth-email" class="auth-input" placeholder="Email address" required>
             </div>
             <div id="password-group">
-                <input type="password" id="auth-password" class="auth-input" placeholder="Password" required>
+                <input type="password" id="auth-password" class="auth-input" placeholder="Password" required minlength="6">
             </div>
-            <div id="code-group" style="display:none;">
-                <input type="text" id="auth-code" class="auth-input" placeholder="Verification Code (6 digits)">
-            </div>
+            <div id="auth-message" class="auth-message"></div>
             <button type="submit" class="auth-btn" id="auth-submit-btn">Sign In</button>
         </form>
+        <div class="auth-forgot" id="auth-forgot"><span data-auth-switch="reset">Forgot password?</span></div>
         <div class="auth-switch" id="auth-switch-text">
-            New here? <span id="switch-auth-mode">Create Account</span>
+            New here? <span data-auth-switch="signup">Create Account</span>
         </div>
+    </div>
+</div>
+
+<!-- Chatbot UI -->
+<div class="chatbot-btn" id="chatbot-btn">
+    <i class="fas fa-robot"></i>
+</div>
+
+<div class="chatbot-window" id="chatbot-window">
+    <div class="chat-header">
+        <span><i class="fas fa-magic"></i> AI Concierge</span>
+        <div class="chat-header-actions">
+            <button type="button" class="chat-header-btn" id="chat-history-btn" title="Past recommendations">
+                <i class="fas fa-clock-rotate-left"></i>
+            </button>
+            <i class="fas fa-times chat-close" id="chat-close"></i>
+        </div>
+    </div>
+    <div class="chat-body">
+        <div class="chat-history-panel" id="chat-history-panel">
+            <div class="chat-history-header">Past picks</div>
+            <div class="chat-history-list" id="chat-history-list"></div>
+        </div>
+        <div class="chat-conversation" id="chat-conversation">
+            <div class="chat-messages" id="chat-messages"></div>
+        </div>
+    </div>
+    <div class="chat-input-area" id="chat-input-area">
+        <input type="text" class="chat-input" id="chat-input" placeholder="Type your answer...">
+        <button class="chat-send" id="chat-send"><i class="fas fa-paper-plane"></i></button>
     </div>
 </div>
 
@@ -873,6 +1139,9 @@
     const IMG_BASE = 'https://image.tmdb.org/t/p/w500';
     const API_BASE = 'https://api.themoviedb.org/3';
     const BACKEND_URL = 'https://movies-4myh.onrender.com/api';
+    const CHAT_API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:8001/api'
+        : BACKEND_URL;
 
     let movieGenres = [], tvGenres = [];
     let mediaType = 'movie';
@@ -898,10 +1167,34 @@
     let maxEpisodes = 0;
     let skipTimers = {};
     
+    // --- SUPABASE CLIENT ---
+    // Config comes from config.js (gitignored). If it's missing or still holds
+    // placeholders, we degrade to guest mode instead of breaking the app.
+    const APP_CONFIG = window.__APP_CONFIG__ || {};
+    const SUPABASE_READY = Boolean(
+        APP_CONFIG.SUPABASE_URL &&
+        APP_CONFIG.SUPABASE_ANON_KEY &&
+        !APP_CONFIG.SUPABASE_URL.includes('YOUR-PROJECT-REF') &&
+        !APP_CONFIG.SUPABASE_ANON_KEY.includes('YOUR-ANON-KEY') &&
+        window.supabase && typeof window.supabase.createClient === 'function'
+    );
+    const sb = SUPABASE_READY
+        ? window.supabase.createClient(APP_CONFIG.SUPABASE_URL, APP_CONFIG.SUPABASE_ANON_KEY)
+        : null;
+    if (!SUPABASE_READY) {
+        console.warn(
+            '[auth] Supabase not configured — running in guest mode (localStorage only).\n' +
+            'Fill in config.js (see config.example.js) to enable accounts and cross-device sync.'
+        );
+    }
+
     // Auth State
-    let authToken = localStorage.getItem('authToken');
-    let userEmail = localStorage.getItem('userEmail');
-    let watchHistory = []; // Will be loaded from backend or local
+    let currentUser = null;              // Supabase user object, or null for guests
+    let watchHistory = [];               // in-memory mirror of continue_watching
+    let conciergeSessions = [];          // in-memory mirror of concierge_sessions
+
+    const LOCAL_WATCH_KEY = 'watchHistory';
+    const MAX_WATCH_ITEMS = 20;
 
     const grid = document.getElementById('movies-grid');
     const carouselEl = document.getElementById('latest-carousel');
@@ -927,140 +1220,223 @@
     const authModal = document.getElementById('auth-modal');
     const authClose = document.getElementById('auth-close');
     const authForm = document.getElementById('auth-form');
-    const switchAuthMode = document.getElementById('switch-auth-mode');
     const authTitle = document.getElementById('auth-title');
     const authSubmitBtn = document.getElementById('auth-submit-btn');
-    const codeGroup = document.getElementById('code-group');
+    const authSwitchText = document.getElementById('auth-switch-text');
+    const authForgot = document.getElementById('auth-forgot');
+    const authMessage = document.getElementById('auth-message');
+    const authEmailInput = document.getElementById('auth-email');
+    const authPasswordInput = document.getElementById('auth-password');
     const passGroup = document.getElementById('password-group');
-    
-    let authMode = 'login'; // login, signup, verify
 
-    // --- AUTH LOGIC ---
+    // --- AUTH LOGIC (Supabase) ---
+    const AUTH_MODES = {
+        login: {
+            title: 'Welcome Back',
+            submit: 'Sign In',
+            switchHtml: 'New here? <span data-auth-switch="signup">Create Account</span>',
+        },
+        signup: {
+            title: 'Create Account',
+            submit: 'Create Account',
+            switchHtml: 'Already have an account? <span data-auth-switch="login">Sign In</span>',
+        },
+        reset: {
+            title: 'Reset Password',
+            submit: 'Send Reset Link',
+            switchHtml: 'Remembered it? <span data-auth-switch="login">Sign In</span>',
+        },
+    };
+
+    let authMode = 'login';
+
+    function setAuthMessage(text, kind) {
+        authMessage.textContent = text || '';
+        authMessage.className = 'auth-message' + (text ? ` show ${kind || 'error'}` : '');
+    }
+
+    function setAuthMode(mode) {
+        if (!AUTH_MODES[mode]) return;
+        authMode = mode;
+        const cfg = AUTH_MODES[mode];
+        authTitle.textContent = cfg.title;
+        authSubmitBtn.textContent = cfg.submit;
+        authSwitchText.innerHTML = cfg.switchHtml;
+        // Password is irrelevant when we're just emailing a reset link.
+        passGroup.style.display = mode === 'reset' ? 'none' : 'block';
+        authPasswordInput.required = mode !== 'reset';
+        authForgot.style.display = mode === 'login' ? 'block' : 'none';
+        setAuthMessage('');
+    }
+
+    function openAuthModal() {
+        setAuthMode('login');
+        authModal.style.display = 'flex';
+        authEmailInput.focus();
+    }
+
+    function closeAuthModal() {
+        authModal.style.display = 'none';
+        authForm.reset();
+        setAuthMessage('');
+    }
+
+    // Delegated — the old code re-read .onclick off a detached node after every
+    // innerHTML swap, which only worked by accident.
+    [authSwitchText, authForgot].forEach(el => {
+        el.addEventListener('click', (e) => {
+            const target = e.target.closest('[data-auth-switch]');
+            if (target) setAuthMode(target.dataset.authSwitch);
+        });
+    });
+
     function updateAuthUI() {
-        if (authToken) {
-            authBtn.innerHTML = `<i class="fas fa-user-check"></i> <span>${userEmail.split('@')[0]}</span>`;
+        if (currentUser) {
+            // Guarded: a partially-cleared localStorage used to crash the whole app here.
+            const label = (currentUser.email || '').split('@')[0] || 'Account';
+            authBtn.innerHTML = `<i class="fas fa-user-check"></i> <span></span>`;
+            authBtn.querySelector('span').textContent = label;
             authBtn.classList.add('logged-in');
             authBtn.onclick = logout;
-            loadBackendHistory();
         } else {
             authBtn.innerHTML = `<i class="fas fa-user"></i> <span>Sign In</span>`;
             authBtn.classList.remove('logged-in');
-            authBtn.onclick = () => { authModal.style.display = 'flex'; };
-            watchHistory = JSON.parse(localStorage.getItem('watchHistory')) || [];
-            renderContinueWatching();
+            authBtn.onclick = openAuthModal;
         }
     }
 
-    function logout() {
-        if(confirm('Log out?')) {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('userEmail');
-            authToken = null;
-            userEmail = null;
-            updateAuthUI();
-        }
+    async function logout() {
+        if (!confirm('Log out?')) return;
+        if (sb) await sb.auth.signOut();
+        currentUser = null;
+        // Deliberately NOT mirrored to localStorage: on a shared device that
+        // would leak one account's history to the next guest.
+        watchHistory = [];
+        conciergeSessions = [];
+        updateAuthUI();
+        renderContinueWatching();
+        renderConciergeHistoryList();
     }
-
-    authClose.onclick = () => authModal.style.display = 'none';
-    
-    switchAuthMode.onclick = () => {
-        if (authMode === 'login') {
-            authMode = 'signup';
-            authTitle.innerText = 'Create Account';
-            authSubmitBtn.innerText = 'Send Code';
-            switchAuthMode.innerText = 'Sign In';
-            document.getElementById('auth-switch-text').innerHTML = 'Already have an account? <span id="switch-auth-mode">Sign In</span>';
-        } else {
-            authMode = 'login';
-            authTitle.innerText = 'Welcome Back';
-            authSubmitBtn.innerText = 'Sign In';
-            codeGroup.style.display = 'none';
-            passGroup.style.display = 'block';
-            document.getElementById('auth-switch-text').innerHTML = 'New here? <span id="switch-auth-mode">Create Account</span>';
-        }
-        // Re-attach listener since innerHTML changed
-        document.getElementById('switch-auth-mode').onclick = switchAuthMode.onclick;
-    };
 
     authForm.onsubmit = async (e) => {
         e.preventDefault();
-        const email = document.getElementById('auth-email').value;
-        const password = document.getElementById('auth-password').value;
-        const code = document.getElementById('auth-code').value;
+        if (!sb) {
+            setAuthMessage('Supabase is not configured yet — fill in config.js. See config.example.js.', 'error');
+            return;
+        }
+
+        const email = authEmailInput.value.trim();
+        const password = authPasswordInput.value;
+        const restoreLabel = AUTH_MODES[authMode].submit;
 
         authSubmitBtn.disabled = true;
-        authSubmitBtn.innerText = 'Processing...';
+        authSubmitBtn.textContent = 'Working…';
+        setAuthMessage('');
 
         try {
             if (authMode === 'signup') {
-                const res = await fetch(`${BACKEND_URL}/auth/signup`, {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ email, password })
+                const { data, error } = await sb.auth.signUp({
+                    email,
+                    password,
+                    options: { emailRedirectTo: window.location.href.split('#')[0] },
                 });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.message);
-                
-                authMode = 'verify';
-                authTitle.innerText = 'Enter Verification Code';
-                passGroup.style.display = 'none';
-                codeGroup.style.display = 'block';
-                authSubmitBtn.innerText = 'Verify Code';
-                alert('Verification code sent to ' + email);
-            } else if (authMode === 'verify') {
-                const res = await fetch(`${BACKEND_URL}/auth/verify`, {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ email, code })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.message);
-                
-                finishLogin(data);
+                if (error) throw error;
+                if (data.session) {
+                    // Email confirmation is off in project settings — straight in.
+                    closeAuthModal();
+                } else {
+                    setAuthMessage(`Almost there — check ${email} for a confirmation link.`, 'ok');
+                }
             } else if (authMode === 'login') {
-                const res = await fetch(`${BACKEND_URL}/auth/login`, {
-                    method: 'POST', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ email, password })
+                const { error } = await sb.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                closeAuthModal();
+            } else if (authMode === 'reset') {
+                const { error } = await sb.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.href.split('#')[0],
                 });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.message);
-                
-                finishLogin(data);
+                if (error) throw error;
+                setAuthMessage(`Password reset link sent to ${email}.`, 'ok');
             }
         } catch (err) {
-            alert(err.message);
+            setAuthMessage(err.message || 'Something went wrong. Try again.', 'error');
+        } finally {
             authSubmitBtn.disabled = false;
-            authSubmitBtn.innerText = authMode === 'signup' ? 'Send Code' : (authMode === 'verify' ? 'Verify Code' : 'Sign In');
-        }
-        finally{
-            console.log("authForm.onsubmit function ran");
+            authSubmitBtn.textContent = restoreLabel;
         }
     };
 
-    function finishLogin(data) {
-        authToken = data.token;
-        userEmail = data.user.email;
-        watchHistory = data.user.history || [];
-        
-        localStorage.setItem('authToken', authToken);
-        localStorage.setItem('userEmail', userEmail);
-        
-        authModal.style.display = 'none';
-        authSubmitBtn.disabled = false;
-        updateAuthUI();
-        renderContinueWatching();
+    /* --- Google OAuth hook -------------------------------------------------
+     * To enable: configure the Google provider in
+     *   Supabase Dashboard → Authentication → Providers → Google
+     * add a button to the auth modal, and call:
+     *
+     *   await sb.auth.signInWithOAuth({
+     *       provider: 'google',
+     *       options: { redirectTo: window.location.href.split('#')[0] },
+     *   });
+     *
+     * onAuthStateChange below picks up the returning session automatically —
+     * no other wiring needed.
+     * --------------------------------------------------------------------- */
+
+    if (sb) {
+        sb.auth.onAuthStateChange((event, session) => {
+            const nextUser = session?.user ?? null;
+            const changed = (currentUser?.id ?? null) !== (nextUser?.id ?? null);
+            const signedIn = !currentUser && nextUser;
+            currentUser = nextUser;
+            if (!changed) return;
+
+            // Deferred to a macrotask: supabase-js holds an internal lock while
+            // this callback runs, and calling client methods inside it can deadlock.
+            setTimeout(async () => {
+                if (signedIn) await mergeGuestDataIntoAccount();
+                updateAuthUI();
+                await loadWatchHistory();
+                await loadConciergeSessions();
+            }, 0);
+        });
     }
 
-    async function loadBackendHistory() {
-        if (!authToken) return;
-        try {
-            const res = await fetch(`${BACKEND_URL}/user/history`, {
-                headers: { 'Authorization': `Bearer ${authToken}` }
-            });
-            if (res.ok) {
-                watchHistory = await res.json();
-                renderContinueWatching();
-            }
-        } catch(e) { console.log('History sync failed'); }
+    /**
+     * First sign-in on a device: lift anything stored as a guest into the account.
+     *
+     * Uses ignoreDuplicates so local rows never clobber server-side progress —
+     * localStorage entries carry no timestamp, so we can't tell which is newer,
+     * and silently overwriting real progress is the worse failure.
+     */
+    async function mergeGuestDataIntoAccount() {
+        if (!currentUser || !sb) return;
+
+        const localWatch = readLocalWatch();
+        if (localWatch.length) {
+            const { error } = await sb.from('watch_progress').upsert(
+                localWatch.map(itemToRow),
+                { onConflict: 'user_id,tmdb_id,media_type,season,episode', ignoreDuplicates: true }
+            );
+            if (error) console.warn('[merge] watch history failed:', error.message);
+            else localStorage.removeItem(LOCAL_WATCH_KEY);
+        }
+
+        const localSessions = readLocalConcierge();
+        if (localSessions.length) {
+            const { error } = await sb.from('concierge_sessions').insert(
+                localSessions.map(s => ({
+                    user_id: currentUser.id,
+                    movie_id: s.movieId ?? null,
+                    movie_title: s.movieTitle ?? null,
+                    stream_url: s.streamUrl || null,
+                    messages: s.messages || [],
+                    ended_at: s.endedAt || new Date().toISOString(),
+                }))
+            );
+            if (error) console.warn('[merge] concierge sessions failed:', error.message);
+            else localStorage.removeItem(CONCIERGE_SESSIONS_KEY);
+        }
     }
+
+    authClose.onclick = closeAuthModal;
 
     async function loadGenres() {
         const options = { headers: { 'Authorization': `Bearer ${TMDB_READ_TOKEN}` } };
@@ -1500,36 +1876,116 @@
             
             card.querySelector('.history-remove-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
-                removeFromHistory(item.id);
+                removeFromHistory(item.id, item.type);
             });
             
             continueWatchingScroll.appendChild(card);
         });
     }
 
-    async function addToHistory(meta) {
-        // Remove existing entry for this ID to move it to top
-        watchHistory = watchHistory.filter(i => i.id !== meta.id);
-        watchHistory.unshift(meta);
-        if (watchHistory.length > 20) watchHistory.pop(); // Limit to 20 items
-        
-        if (authToken) {
-            // Sync to backend
-            fetch(`${BACKEND_URL}/user/history`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-                body: JSON.stringify(meta)
-            }).catch(e => console.log('Sync error'));
+    // --- WATCH HISTORY PERSISTENCE -----------------------------------------
+    // One backend for guests (localStorage), one for signed-in users
+    // (Supabase watch_progress + the continue_watching view). The in-memory
+    // `watchHistory` shape is identical either way, so render code is unaware.
+
+    function readLocalWatch() {
+        try { return JSON.parse(localStorage.getItem(LOCAL_WATCH_KEY)) || []; }
+        catch { return []; }
+    }
+
+    function writeLocalWatch() {
+        localStorage.setItem(LOCAL_WATCH_KEY, JSON.stringify(watchHistory));
+    }
+
+    function rowToItem(row) {
+        return {
+            id: row.tmdb_id,
+            type: row.media_type,
+            isAnime: row.is_anime,
+            title: row.title,
+            poster_path: row.poster_path,
+            season: row.season || undefined,
+            episode: row.episode || undefined,
+            position_seconds: Number(row.position_seconds) || 0,
+            duration_seconds: row.duration_seconds == null ? null : Number(row.duration_seconds),
+            progress_pct: Number(row.progress_pct) || 0,
+            updated_at: row.updated_at,
+        };
+    }
+
+    function itemToRow(item) {
+        return {
+            user_id: currentUser.id,
+            tmdb_id: item.id,
+            media_type: item.type === 'tv' ? 'tv' : 'movie',
+            season: item.season ?? 0,          // 0 for movies — see schema comment
+            episode: item.episode ?? 0,
+            is_anime: Boolean(item.isAnime),
+            title: item.title || null,
+            poster_path: item.poster_path || null,
+            position_seconds: item.position_seconds || 0,
+            duration_seconds: item.duration_seconds ?? null,
+            fidelity: item.fidelity || 'none',
+            source: item.source || null,
+        };
+    }
+
+    async function loadWatchHistory() {
+        if (currentUser && sb) {
+            const { data, error } = await sb
+                .from('continue_watching')
+                .select('*')
+                .order('updated_at', { ascending: false })
+                .limit(MAX_WATCH_ITEMS);
+            if (error) {
+                console.warn('[watch] load failed:', error.message);
+                watchHistory = [];
+            } else {
+                watchHistory = (data || []).map(rowToItem);
+            }
         } else {
-            localStorage.setItem('watchHistory', JSON.stringify(watchHistory));
+            watchHistory = readLocalWatch();
         }
         renderContinueWatching();
     }
 
-    function removeFromHistory(id) {
-        watchHistory = watchHistory.filter(i => i.id !== id);
-        localStorage.setItem('watchHistory', JSON.stringify(watchHistory));
+    async function addToHistory(meta) {
+        // Merge onto any existing entry so a partial update (e.g. episode change)
+        // doesn't drop fields we already know.
+        const existing = watchHistory.find(i => i.id === meta.id && i.type === meta.type);
+        const merged = { ...(existing || {}), ...meta };
+
+        watchHistory = watchHistory.filter(i => !(i.id === meta.id && i.type === meta.type));
+        watchHistory.unshift(merged);
+        if (watchHistory.length > MAX_WATCH_ITEMS) watchHistory.length = MAX_WATCH_ITEMS;
+        renderContinueWatching();   // paint first, persist after
+
+        if (currentUser && sb) {
+            const { error } = await sb.from('watch_progress').upsert(itemToRow(merged), {
+                onConflict: 'user_id,tmdb_id,media_type,season,episode',
+            });
+            if (error) console.warn('[watch] sync failed:', error.message);
+        } else {
+            writeLocalWatch();
+        }
+    }
+
+    async function removeFromHistory(id, type) {
+        watchHistory = watchHistory.filter(i => !(i.id === id && i.type === type));
         renderContinueWatching();
+
+        if (currentUser && sb) {
+            // RLS already scopes this to the current user; the explicit
+            // user_id filter is belt-and-braces.
+            const { error } = await sb.from('watch_progress')
+                .delete()
+                .eq('user_id', currentUser.id)
+                .eq('tmdb_id', id)
+                .eq('media_type', type);
+            if (error) console.warn('[watch] delete failed:', error.message);
+        } else {
+            writeLocalWatch();
+        }
     }
 
     function playNextEpisode() {
@@ -1591,7 +2047,6 @@
     function openPlayer(id, type, isAnime = false) {
         const modal = document.getElementById('movie-modal');
         const player = document.getElementById('movie-player');
-        const downloadBtn = document.getElementById('download-btn');
         modal.style.display = 'block';
         document.body.style.overflow = 'hidden';
         document.getElementById('movie-title-header').innerText = 'Loading...';
@@ -1639,84 +2094,6 @@
                         poster_path: data.poster_path
                     });
                 }
-            
-            // Show download button and attach logic
-            downloadBtn.style.display = 'block';
-            downloadBtn.onclick = async () => {
-                const currentSrc = document.getElementById('movie-player').src;
-                if (!currentSrc) return alert('Please select a source first.');
-                
-                const title = (data.title || data.name || 'Movie').replace(/[^a-z0-9]/gi, '_');
-                
-                // Show loading state
-                downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                downloadBtn.disabled = true;
-
-                try {
-                    const response = await fetch(`${BACKEND_URL}/download?url=${encodeURIComponent(currentSrc)}`);
-                    const resData = await response.json();
-                    
-                    if (!response.ok) throw new Error(resData.error || 'Failed to extract video link.');
-
-                    if (resData.commands && resData.commands.ytdlp) {
-                        try {
-                            // Attempt to auto-copy the command to the user's clipboard
-                            await navigator.clipboard.writeText(resData.commands.ytdlp);
-                            alert(
-                                "Stream extracted successfully!\n\n" +
-                                "The download command has been AUTOMATICALLY COPIED to your clipboard.\n\n" +
-                                "HOW TO DOWNLOAD:\n" +
-                                "1. Open your Terminal or Command Prompt.\n" +
-                                "2. Paste the command and press Enter.\n\n" +
-                                "(Note: Requires yt-dlp to be installed on your machine)"
-                            );
-                        } catch (err) {
-                            // Fallback to manual prompt if the clipboard API fails or is blocked
-                            prompt(
-                                "Stream extracted successfully! 🚀\n\n" +
-                                "Direct downloads are blocked by the provider's server. To bypass this, you must download via your terminal using the spoofed headers we extracted.\n\n" +
-                                "HOW TO DOWNLOAD:\n" +
-                                "1. Copy the command below.\n" +
-                                "2. Open your Terminal or Command Prompt.\n" +
-                                "3. Paste the command and press Enter.\n\n" +
-                                "(Note: Requires yt-dlp to be installed on your machine)",
-                                resData.commands.ytdlp
-                            );
-                        }
-                    } else if (resData.isHls) {
-                        // Fallback: Generate a local .m3u playlist file for HLS streams if commands aren't available
-                        const referer = (resData.headers && resData.headers.referer) ? resData.headers.referer : currentSrc;
-                        const userAgent = (resData.headers && resData.headers.userAgent) ? resData.headers.userAgent : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
-                        
-                        const m3uContent = [
-                            '#EXTM3U',
-                            `#EXTVLCOPT:http-referrer=${referer}`,
-                            `#EXTVLCOPT:http-user-agent=${userAgent}`,
-                            `#EXTINF:-1,${title}`,
-                            resData.streamUrl
-                        ].join('\r\n');
-                        const blob = new Blob([m3uContent], { type: 'audio/mpegurl' });
-                        const blobUrl = URL.createObjectURL(blob);
-                        
-                        const a = document.createElement('a');
-                        a.href = blobUrl;
-                        a.download = `${title}_stream.m3u`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        
-                        alert("Download Ready!\n\nWe downloaded a lightweight .m3u playlist file containing the streaming blueprint.\n\nTo download the full MP4:\n1. Open VLC Media Player on your PC/Mac.\n2. Click 'Media' > 'Convert / Save'.\n3. Add this .m3u file and click 'Convert / Save'.\n4. Select 'Video - H.264 + MP3 (MP4)'.\n5. Choose a destination file and click 'Start'.");
-                    } else {
-                        // Direct MP4 link
-                        window.open(resData.streamUrl, '_blank');
-                    }
-                } catch (err) {
-                    alert('Error: ' + err.message);
-                } finally {
-                    downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
-                    downloadBtn.disabled = false;
-                }
-            };
             })
             .catch(() => {
                 document.getElementById('movie-title-header').innerText = 'Error loading';
@@ -1914,12 +2291,300 @@
         }
     });
 
+    // --- CHATBOT LOGIC (Gemini /api/chat) ---
+    const CONCIERGE_SESSIONS_KEY = 'conciergeChatSessions';
+    const MAX_CONCIERGE_SESSIONS = 30;
+
+    let chatHistory = [];
+    let chatBusy = false;
+    let chatStarted = false;
+    let chatHistoryPanelOpen = false;
+
+    const chatbotBtn = document.getElementById('chatbot-btn');
+    const chatbotWindow = document.getElementById('chatbot-window');
+    const chatCloseBtn = document.getElementById('chat-close');
+    const chatHistoryBtn = document.getElementById('chat-history-btn');
+    const chatHistoryPanel = document.getElementById('chat-history-panel');
+    const chatHistoryList = document.getElementById('chat-history-list');
+    const chatConversation = document.getElementById('chat-conversation');
+    const chatInputArea = document.getElementById('chat-input-area');
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInputField = document.getElementById('chat-input');
+    const chatSendBtn = document.getElementById('chat-send');
+
+    function addChatMessage(text, sender) {
+        const msg = document.createElement('div');
+        msg.className = `chat-msg ${sender}`;
+        msg.innerText = text;
+        chatMessages.appendChild(msg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function readLocalConcierge() {
+        try {
+            return JSON.parse(localStorage.getItem(CONCIERGE_SESSIONS_KEY)) || [];
+        } catch {
+            return [];
+        }
+    }
+
+    async function loadConciergeSessions() {
+        if (currentUser && sb) {
+            const { data, error } = await sb
+                .from('concierge_sessions')
+                .select('*')
+                .order('ended_at', { ascending: false })
+                .limit(MAX_CONCIERGE_SESSIONS);
+            if (error) {
+                console.warn('[concierge] load failed:', error.message);
+                conciergeSessions = [];
+            } else {
+                conciergeSessions = (data || []).map(r => ({
+                    id: r.id,
+                    movieTitle: r.movie_title,
+                    movieId: r.movie_id,
+                    streamUrl: r.stream_url,
+                    endedAt: r.ended_at,
+                    messages: r.messages || [],
+                }));
+            }
+        } else {
+            conciergeSessions = readLocalConcierge();
+        }
+        renderConciergeHistoryList();
+    }
+
+    async function saveConciergeSession(data) {
+        const movieId = data.movie_id ? parseInt(data.movie_id, 10) : null;
+        if (!movieId) return;
+
+        const session = {
+            id: String(Date.now()),
+            movieTitle: data.movie_title || `Movie #${movieId}`,
+            movieId,
+            streamUrl: data.stream_url || '',
+            endedAt: new Date().toISOString(),
+            messages: chatHistory.map(m => ({ role: m.role, content: m.content })),
+        };
+
+        conciergeSessions.unshift(session);
+        if (conciergeSessions.length > MAX_CONCIERGE_SESSIONS) {
+            conciergeSessions.length = MAX_CONCIERGE_SESSIONS;
+        }
+        renderConciergeHistoryList();
+
+        if (currentUser && sb) {
+            const { data: inserted, error } = await sb.from('concierge_sessions')
+                .insert({
+                    user_id: currentUser.id,
+                    movie_id: movieId,
+                    movie_title: session.movieTitle,
+                    stream_url: session.streamUrl,
+                    messages: session.messages,
+                    ended_at: session.endedAt,
+                })
+                .select('id')
+                .single();
+            if (error) console.warn('[concierge] save failed:', error.message);
+            else if (inserted) session.id = inserted.id;   // swap temp id for the real uuid
+        } else {
+            localStorage.setItem(CONCIERGE_SESSIONS_KEY, JSON.stringify(conciergeSessions));
+        }
+    }
+
+    function formatConciergeDate(iso) {
+        const d = new Date(iso);
+        const now = new Date();
+        const sameDay = d.toDateString() === now.toDateString();
+        if (sameDay) {
+            return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        }
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+
+    function renderConciergeHistoryList() {
+        const sessions = conciergeSessions;
+        chatHistoryList.innerHTML = '';
+
+        if (sessions.length === 0) {
+            chatHistoryList.innerHTML = '<div class="chat-history-empty">No past picks yet.<br>Finish a concierge session to see recommendations here.</div>';
+            return;
+        }
+
+        sessions.forEach(session => {
+            const row = document.createElement('div');
+            row.className = 'chat-history-item';
+            row.innerHTML = `
+                <div class="chat-history-item-info">
+                    <div class="chat-history-item-title"></div>
+                    <div class="chat-history-item-date"></div>
+                </div>
+                <button type="button" class="chat-history-play" title="Play again"><i class="fas fa-play"></i></button>
+            `;
+            row.querySelector('.chat-history-item-title').textContent = session.movieTitle;
+            row.querySelector('.chat-history-item-date').textContent = formatConciergeDate(session.endedAt);
+
+            row.addEventListener('click', (e) => {
+                if (e.target.closest('.chat-history-play')) return;
+                restoreConciergeSession(session);
+            });
+            row.querySelector('.chat-history-play').addEventListener('click', (e) => {
+                e.stopPropagation();
+                openPlayer(session.movieId, 'movie', false);
+            });
+
+            chatHistoryList.appendChild(row);
+        });
+    }
+
+    function setChatHistoryPanelOpen(open) {
+        chatHistoryPanelOpen = open;
+        chatHistoryPanel.classList.toggle('open', open);
+        chatConversation.classList.toggle('hidden', open);
+        chatInputArea.style.display = open ? 'none' : 'flex';
+        chatHistoryBtn.classList.toggle('active', open);
+        if (open) renderConciergeHistoryList();
+    }
+
+    function restoreConciergeSession(session) {
+        setChatHistoryPanelOpen(false);
+        chatMessages.innerHTML = '';
+        chatHistory = (session.messages || []).map(m => ({ role: m.role, content: m.content }));
+        chatHistory.forEach(m => {
+            addChatMessage(m.content, m.role === 'user' ? 'user' : 'bot');
+        });
+        chatStarted = true;
+        addChatMessage('— Restored past session —', 'bot');
+    }
+
+    function resetChatSession() {
+        chatHistory = [];
+        chatBusy = false;
+        chatStarted = false;
+    }
+
+    chatHistoryBtn.addEventListener('click', () => {
+        setChatHistoryPanelOpen(!chatHistoryPanelOpen);
+    });
+
+    async function callConciergeChat(message) {
+        const res = await fetch(`${CHAT_API_URL}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: message || '', history: chatHistory }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'Chat service unavailable');
+        }
+        return res.json();
+    }
+
+    function appendHistory(role, content) {
+        if (!content) return;
+        chatHistory.push({ role, content });
+    }
+
+    async function startConciergeChat() {
+        if (chatBusy) return;
+        chatBusy = true;
+        try {
+            const data = await callConciergeChat('');
+            appendHistory('assistant', data.bot_message);
+            addChatMessage(data.bot_message, 'bot');
+            chatStarted = true;
+        } catch (e) {
+            addChatMessage('Concierge is offline. Start the Python API on port 8000.', 'bot');
+            resetChatSession();
+        } finally {
+            chatBusy = false;
+        }
+    }
+
+    chatbotBtn.addEventListener('click', () => {
+        chatbotWindow.style.display = chatbotWindow.style.display === 'flex' ? 'none' : 'flex';
+        if (!chatStarted && chatMessages.children.length === 0) {
+            addChatMessage('Hey! I am your AI Concierge. Let me learn your vibe first.', 'bot');
+            startConciergeChat();
+        }
+    });
+
+    chatCloseBtn.addEventListener('click', () => {
+        chatbotWindow.style.display = 'none';
+        setChatHistoryPanelOpen(false);
+    });
+
+    async function handleChatInput() {
+        const text = chatInputField.value.trim();
+        if (!text || chatBusy) return;
+        if (!chatStarted) {
+            await startConciergeChat();
+            if (!chatStarted) return;
+        }
+
+        addChatMessage(text, 'user');
+        chatInputField.value = '';
+        chatBusy = true;
+
+        try {
+            const data = await callConciergeChat(text);
+            appendHistory('user', text);
+            appendHistory('assistant', data.bot_message);
+
+            if (data.trigger_action === 'CHAT') {
+                setTimeout(() => addChatMessage(data.bot_message, 'bot'), 400);
+                return;
+            }
+
+            setTimeout(() => {
+                addChatMessage(data.bot_message, 'bot');
+                saveConciergeSession(data);
+                const playId = data.movie_id ? parseInt(data.movie_id, 10) : null;
+                if (playId) {
+                    setTimeout(() => {
+                        openPlayer(playId, 'movie', false);
+                        resetChatSession();
+                    }, 1500);
+                } else if (data.stream_url) {
+                    window.open(data.stream_url, '_blank');
+                    resetChatSession();
+                } else {
+                    addChatMessage('Could not start playback. Try searching manually.', 'bot');
+                    resetChatSession();
+                }
+            }, 500);
+        } catch (e) {
+            addChatMessage('Oops, my systems are glitching. Try searching manually!', 'bot');
+            resetChatSession();
+        } finally {
+            chatBusy = false;
+        }
+    }
+
+    chatSendBtn.addEventListener('click', handleChatInput);
+    chatInputField.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleChatInput();
+    });
+
     (async () => {
         await loadGenres();
         buildGenreDropdown();
         loadCarousel();
-        updateAuthUI(); // Check login state on load
-        renderContinueWatching();
+
+        // Restore any persisted Supabase session before first paint of the
+        // account-dependent UI. onAuthStateChange handles everything after this.
+        if (sb) {
+            try {
+                const { data } = await sb.auth.getSession();
+                currentUser = data.session?.user ?? null;
+            } catch (e) {
+                console.warn('[auth] session restore failed:', e.message);
+            }
+        }
+        updateAuthUI();
+        await loadWatchHistory();
+        await loadConciergeSessions();
+
         loadGridContent();
     })();
 })();

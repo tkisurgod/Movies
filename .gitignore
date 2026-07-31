@@ -1,0 +1,27 @@
+# Frontend runtime config — contains Supabase project keys.
+# Copy config.example.js → config.js and fill it in.
+config.js
+
+# Dependencies
+node_modules/
+
+# TMDB dataset — 44 MB of public Kaggle data, not worth versioning.
+# See backend/database/README.md to re-download.
+backend/database/*.csv
+
+# Chroma vector store — regenerate with `python database/ingest_data.py`
+backend/database/chroma_db/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Environment
+.env
+.env.local
+
+# Editor / OS
+.DS_Store
+Thumbs.db

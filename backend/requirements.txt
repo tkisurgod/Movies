@@ -1,0 +1,10 @@
+fastapi>=0.111.0
+uvicorn>=0.30.1
+langchain>=0.2.5
+langchain-openai>=0.1.9
+langchain-community>=0.2.5
+chromadb>=0.5.3
+python-dotenv>=1.0.1
+pydantic>=2.7.4
+# pandas only required for database/ingest_data.py
+pandas>=2.2.2
