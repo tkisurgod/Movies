@@ -1,6 +1,6 @@
-# Frontend runtime config — contains Supabase project keys.
-# Copy config.example.js → config.js and fill it in.
-config.js
+# NOTE: config.js is deliberately NOT ignored. It holds only public-by-design
+# browser keys (Supabase anon, TMDB) and must ship for GitHub Pages to work.
+# See CREDENTIAL-PROTECTION.md before putting anything new in it.
 
 # Dependencies
 node_modules/
@@ -25,3 +25,8 @@ venv/
 # Editor / OS
 .DS_Store
 Thumbs.db
+
+SUPABASE_SETUP.md
+REVAMP.md
+CREDENTIAL-PROTECTION.md
+FUTURE_TODOS.md

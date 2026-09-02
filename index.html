@@ -1134,8 +1134,16 @@
     updateColor();
 })();
 (function() {
-    const TMDB_API_KEY = 'a61fccf34d3b7d0701fcdde5db6043ab';
-    const TMDB_READ_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJhNjFmY2NmMzRkM2I3ZDA3MDFmY2RkZTVkYjYwNDNhYiIsIm5iZiI6MTc2MzY0NjIxOS45MSwic3ViIjoiNjkxZjFiMGI0ZWEwMzMyNDQ1MDU4NmRhIiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.C29__PfaNFBL2P2mSh8Yf3Rpzj78kz80rB2y5eGIHRM';
+    // Sourced from config.js — see CREDENTIAL-PROTECTION.md for why these are
+    // public. Do not paste literals back in here; config.js is the one place.
+    const TMDB_API_KEY = window.__APP_CONFIG__?.TMDB_API_KEY || '';
+    const TMDB_READ_TOKEN = window.__APP_CONFIG__?.TMDB_READ_TOKEN || '';
+    if (!TMDB_API_KEY || !TMDB_READ_TOKEN) {
+        console.error(
+            'TMDB credentials missing. Copy config.example.js → config.js and ' +
+            'fill in TMDB_API_KEY / TMDB_READ_TOKEN. Catalog will not load.'
+        );
+    }
     const IMG_BASE = 'https://image.tmdb.org/t/p/w500';
     const API_BASE = 'https://api.themoviedb.org/3';
     const BACKEND_URL = 'https://movies-4myh.onrender.com/api';
@@ -1168,8 +1176,9 @@
     let skipTimers = {};
     
     // --- SUPABASE CLIENT ---
-    // Config comes from config.js (gitignored). If it's missing or still holds
-    // placeholders, we degrade to guest mode instead of breaking the app.
+    // Config comes from config.js (committed — public keys only). If it's
+    // missing or still holds placeholders, we degrade to guest mode instead of
+    // breaking the app.
     const APP_CONFIG = window.__APP_CONFIG__ || {};
     const SUPABASE_READY = Boolean(
         APP_CONFIG.SUPABASE_URL &&
